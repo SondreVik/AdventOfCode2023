@@ -35,6 +35,7 @@ func Solve() {
 	text := string(dat)
 	games := deserializeGames(text)
 	fmt.Println(part1(games, CubeSet{12, 13, 14}))
+	fmt.Println(part2(games))
 }
 
 func deserializeGames(text string) (games []Game) {
@@ -83,6 +84,27 @@ func part1(games []Game, validSet CubeSet) (sum int) {
 		if !impossible {
 			sum += game.id
 		}
+	}
+	return
+}
+func part2(games []Game) (sum int) {
+	fmt.Println("part 2")
+	for _, game := range games {
+		maxGreen := 0
+		maxBlue := 0
+		maxRed := 0
+		for _, set := range game.sets {
+			if set.blue > maxBlue {
+				maxBlue = set.blue
+			}
+			if set.green > maxGreen {
+				maxGreen = set.green
+			}
+			if set.red > maxRed {
+				maxRed = set.red
+			}
+		}
+		sum += maxBlue * maxGreen * maxRed
 	}
 	return
 }
