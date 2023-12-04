@@ -76,7 +76,6 @@ func part2(text string) {
 }
 
 func sumUp(text string) int {
-
 	res1 := strings.Split(text, "\n")
 	sum := 0
 	for _, s := range res1 {
