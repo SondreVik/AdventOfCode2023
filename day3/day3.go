@@ -101,7 +101,7 @@ type Coord struct {
 func getNumber(chars []rune, index int) (number int) {
 	word := ""
 	start := index
-	for i := index; i > 0; i-- {
+	for i := index; i >= 0; i-- {
 		if !unicode.IsNumber(chars[i]) {
 			break
 		}
