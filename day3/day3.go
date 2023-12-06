@@ -143,8 +143,6 @@ func part2(matrix [][]rune) (sum int) {
 					for _, number := range numbers {
 						product *= number
 					}
-					fmt.Println("found * ")
-					fmt.Println(numbers)
 					sum += product
 				}
 			}
