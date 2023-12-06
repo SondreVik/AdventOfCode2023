@@ -84,28 +84,39 @@ func getValueOrDefault(value int, fallBack int) int {
 
 func evaluate(data []SourceDestinationRanges, source int) int {
 	id := slices.IndexFunc(data, func(element SourceDestinationRanges) bool {
-		return element.sourceRange.from >= source && element.sourceRange.to <= source
+		return element.sourceRange.from <= source && element.sourceRange.to >= source
 	})
 	if id < 0 {
+		fmt.Println("no match")
 		return source
 	}
-	destinationElement := data[id]
-	sourceOffset := source - destinationElement.sourceRange.from
-	return destinationElement.destinationRange.from + sourceOffset
+	matchingRange := data[id]
+	fmt.Println(" match: ", matchingRange)
+	sourceOffset := source - matchingRange.sourceRange.from
+	return matchingRange.destinationRange.from + sourceOffset
 }
 
 func part1(data map[string][]SourceDestinationRanges, seeds []int) int {
 	fmt.Println("Part 1")
 	lowestLocation := 999999999999999999
+	//fmt.Println("seed-to-soil: ", data["seed-to-soil"])
 	for _, seed := range seeds {
+		fmt.Println("seed: ", seed)
 		soil := evaluate(data["seed-to-soil"], seed)
+		fmt.Println("soil: ", soil)
 		fertilizer := evaluate(data["soil-to-ferilizer"], soil)
+		fmt.Println("fertilizer: ", fertilizer)
 		water := evaluate(data["ferilizer-to-water"], fertilizer)
+		fmt.Println("water: ", water)
 		light := evaluate(data["water-to-light"], water)
+		fmt.Println("light", light)
 		temperature := evaluate(data["light-to-temperature"], light)
+		fmt.Println("temperature: ", temperature)
 		humidity := evaluate(data["temperature-to-light"], temperature)
+		fmt.Println("humidity: ", humidity)
 		location := evaluate(data["humidity-to-location"], humidity)
-		if location > lowestLocation {
+		fmt.Println("location: ", location)
+		if location < lowestLocation {
 			lowestLocation = location
 		}
 	}
