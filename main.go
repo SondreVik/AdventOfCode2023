@@ -5,6 +5,7 @@ import (
 	"AdventOfCode2023/day2"
 	"AdventOfCode2023/day3"
 	"AdventOfCode2023/day4"
+	"AdventOfCode2023/day5"
 )
 
 func main() {
@@ -12,4 +13,5 @@ func main() {
 	day2.Solve()
 	day3.Solve()
 	day4.Solve()
+	day5.Solve()
 }
