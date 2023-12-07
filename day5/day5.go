@@ -3,11 +3,9 @@ package day5
 import (
 	"AdventOfCode2023/utils"
 	"fmt"
-	"runtime/pprof"
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 type Mapping struct {
@@ -133,7 +131,6 @@ func Solve() {
 	maps := deserializeRangeMaps(textLines[1:])
 	fmt.Println(part1(maps, seeds))
 	seedRanges := deserializeSeedRanges(firstLineParts[1])
-	fmt.Println(part2_1(deserializeRangeMaps2(textLines[1:]), seedRanges))
 	fmt.Println(part2(maps, seedRanges))
 }
 
@@ -176,41 +173,54 @@ func getLocation(data map[string][]SourceDestinationRanges, seed int) int {
 	return evaluate(data["humidity-to-location"], humidity)
 }
 
-func getLocation2(data map[string]map[int]RangeMap, seed int) int {
-	soil := evaluate2(data["seed-to-soil"], seed)
-	fertilizer := evaluate2(data["soil-to-fertilizer"], soil)
-	water := evaluate2(data["fertilizer-to-water"], fertilizer)
-	light := evaluate2(data["water-to-light"], water)
-	temperature := evaluate2(data["light-to-temperature"], light)
-	humidity := evaluate2(data["temperature-to-humidity"], temperature)
-	return evaluate2(data["humidity-to-location"], humidity)
+func getLocationRanges(data map[string][]SourceDestinationRanges, seedRanges []IdRange) []IdRange {
+	soil := evaluateRanges(data["seed-to-soil"], seedRanges)
+	fertilizer := evaluateRanges(data["soil-to-fertilizer"], soil)
+	water := evaluateRanges(data["fertilizer-to-water"], fertilizer)
+	light := evaluateRanges(data["water-to-light"], water)
+	temperature := evaluateRanges(data["light-to-temperature"], light)
+	humidity := evaluateRanges(data["temperature-to-humidity"], temperature)
+	return evaluateRanges(data["humidity-to-location"], humidity)
 }
 
-func getLocationsFromRange(data map[string][]SourceDestinationRanges, seedRange IdRange) map[int]int {
-	soilToLocation := make(map[int]int)
-	for i := seedRange.from; i <= seedRange.to; i++ {
-		soil := evaluate(data["seed-to-soil"], i)
-		if _, exists := soilToLocation[soil]; !exists {
-			soilToLocation[soil] = getLocation(data, i)
-		}
+func evaluateRanges(data []SourceDestinationRanges, sourceRanges []IdRange) (result []IdRange) {
+	for _, sourceRange := range sourceRanges {
+		result = append(result, evaluateRange(data, sourceRange.from, sourceRange.to)...)
 	}
-	return soilToLocation
+	fmt.Println("result: ", result)
+	return
 }
 
-func getLocationsFromRange2(data map[string]map[int]RangeMap, seedRange IdRange, locations map[int]int) {
-	soilToLocation := make(map[int]int)
-	for i := seedRange.from; i <= seedRange.to; i++ {
-		soil := evaluate2(data["seed-to-soil"], i)
-		if _, exists := soilToLocation[soil]; !exists {
-			soilToLocation[soil] = getLocation2(data, i)
+func evaluateRange(data []SourceDestinationRanges, from, to int) (result []IdRange) {
+	noMatchStart := -1
+	for i := from; i <= to; i++ {
+		id := slices.IndexFunc(data, func(element SourceDestinationRanges) bool {
+			return element.sourceRange.from <= i && element.sourceRange.to >= i
+		})
+		if id < 0 {
+			if noMatchStart < 0 {
+				fmt.Println("Will set no match to true")
+				noMatchStart = i
+			}
+			continue
 		}
-	}
-	for _, loc := range soilToLocation {
-		if _, exists := locations[loc]; !exists {
-			locations[loc] = loc
+		if noMatchStart >= 0 {
+			noMatchResult := IdRange{noMatchStart, i - 1}
+			fmt.Println("No match result: ", noMatchResult)
+			result = append(result, noMatchResult)
+			noMatchStart = -1
 		}
+		matchingRange := data[id]
+		resultTo := 0
+		if matchingRange.destinationRange.to > to {
+			resultTo = to
+		} else {
+			resultTo = matchingRange.destinationRange.to
+		}
+		result = append(result, IdRange{i, resultTo})
+		i += matchingRange.destinationRange.to
 	}
-	defer wg.Done()
+	return
 }
 
 func part1(data map[string][]SourceDestinationRanges, seeds []int) int {
@@ -228,36 +238,12 @@ func part1(data map[string][]SourceDestinationRanges, seeds []int) int {
 func part2(data map[string][]SourceDestinationRanges, seedRanges []IdRange) int {
 	fmt.Println("Part 2")
 	lowestLocation := 99999999999999999
-	for _, seedRange := range seedRanges {
-		soilToLocation := getLocationsFromRange(data, seedRange)
-		for _, location := range soilToLocation {
-			if location < lowestLocation {
-				lowestLocation = location
-			}
+	locationRanges := getLocationRanges(data, seedRanges)
+	fmt.Println(locationRanges)
+	for _, locationRange := range locationRanges {
+		if locationRange.from < lowestLocation {
+			lowestLocation = locationRange.from
 		}
 	}
-	return lowestLocation
-}
-
-var wg sync.WaitGroup
-
-var threadProfile = pprof.Lookup("threadcreate")
-
-func part2_1(maps map[string]map[int]RangeMap, seedRanges []IdRange) int {
-	fmt.Println("Part 2_1")
-	lowestLocation := 99999999999999999
-	locations := map[int]int{}
-	wg.Add(len(seedRanges))
-
-	for _, seedRange := range seedRanges {
-		go getLocationsFromRange2(maps, seedRange, locations)
-	}
-	wg.Wait()
-	for _, loc := range locations {
-		if loc < lowestLocation {
-			lowestLocation = loc
-		}
-	}
-	wg.Wait()
 	return lowestLocation
 }
