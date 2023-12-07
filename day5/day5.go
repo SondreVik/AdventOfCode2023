@@ -59,20 +59,37 @@ func deserializeRangeMaps(textLines []string) (maps map[string][]SourceDestinati
 	}
 	return
 }
+func deserializeSeedList(seedText string) (seeds []int) {
+	for _, seed := range strings.Split(seedText, " ") {
+		seedNumber, err := strconv.Atoi(seed)
+		utils.CheckError(err)
+		seeds = append(seeds, seedNumber)
+	}
+	return
+}
+
+func deserializeSeedRanges(seedText string) (seedRanges []IdRange) {
+	seedList := strings.Split(seedText, " ")
+	for i := 0; i < len(seedList); i += 2 {
+		seedNumber1, err := strconv.Atoi(seedList[i])
+		utils.CheckError(err)
+		seedNumber2, err := strconv.Atoi(seedList[i+1])
+		utils.CheckError(err)
+		seedRanges = append(seedRanges, IdRange{seedNumber1, seedNumber1 + seedNumber2 - 1})
+	}
+	return
+}
 
 func Solve() {
 	fmt.Println("Day 5")
 	textLines := utils.ReadFile("day5/data.txt")
 	firstLine := textLines[0]
 	firstLineParts := strings.Split(firstLine, ": ")
-	seeds := []int{}
-	for _, seed := range strings.Split(firstLineParts[1], " ") {
-		seedNumber, err := strconv.Atoi(seed)
-		utils.CheckError(err)
-		seeds = append(seeds, seedNumber)
-	}
+	seeds := deserializeSeedList(firstLineParts[1])
 	maps := deserializeRangeMaps(textLines[1:])
 	fmt.Println(part1(maps, seeds))
+	seedRanges := deserializeSeedRanges(firstLineParts[1])
+	fmt.Println(part2(maps, seedRanges))
 }
 
 func getValueOrDefault(value int, fallBack int) int {
@@ -94,19 +111,50 @@ func evaluate(data []SourceDestinationRanges, source int) int {
 	return matchingRange.destinationRange.from + sourceOffset
 }
 
+func getLocation(data map[string][]SourceDestinationRanges, seed int) int {
+	soil := evaluate(data["seed-to-soil"], seed)
+	fertilizer := evaluate(data["soil-to-fertilizer"], soil)
+	water := evaluate(data["fertilizer-to-water"], fertilizer)
+	light := evaluate(data["water-to-light"], water)
+	temperature := evaluate(data["light-to-temperature"], light)
+	humidity := evaluate(data["temperature-to-humidity"], temperature)
+	return evaluate(data["humidity-to-location"], humidity)
+}
+
+func getLocationsFromRange(data map[string][]SourceDestinationRanges, seedRange IdRange) (locations []int) {
+	usedSoil := []int{}
+	for i := seedRange.from; i <= seedRange.to; i++ {
+		soil := evaluate(data["seed-to-soil"], i)
+		if slices.Contains(usedSoil, soil) {
+			continue
+		}
+		usedSoil = append(usedSoil, soil)
+		locations = append(locations, getLocation(data, i))
+	}
+	return
+}
+
 func part1(data map[string][]SourceDestinationRanges, seeds []int) int {
 	fmt.Println("Part 1")
 	lowestLocation := 999999999999999999
 	for _, seed := range seeds {
-		soil := evaluate(data["seed-to-soil"], seed)
-		fertilizer := evaluate(data["soil-to-fertilizer"], soil)
-		water := evaluate(data["fertilizer-to-water"], fertilizer)
-		light := evaluate(data["water-to-light"], water)
-		temperature := evaluate(data["light-to-temperature"], light)
-		humidity := evaluate(data["temperature-to-humidity"], temperature)
-		location := evaluate(data["humidity-to-location"], humidity)
+		location := getLocation(data, seed)
 		if location < lowestLocation {
 			lowestLocation = location
+		}
+	}
+	return lowestLocation
+}
+
+func part2(data map[string][]SourceDestinationRanges, seedRanges []IdRange) int {
+	fmt.Println("Part 2")
+	lowestLocation := 99999999999999999
+	for _, seedRange := range seedRanges {
+		locations := getLocationsFromRange(data, seedRange)
+		for _, location := range locations {
+			if location < lowestLocation {
+				lowestLocation = location
+			}
 		}
 	}
 	return lowestLocation
