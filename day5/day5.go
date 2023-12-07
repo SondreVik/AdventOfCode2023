@@ -52,8 +52,8 @@ func deserializeRangeMaps(textLines []string) (maps map[string][]SourceDestinati
 		maps[mapKey] = append(
 			maps[mapKey],
 			SourceDestinationRanges{
-				sourceRange:      IdRange{source, source + length},
-				destinationRange: IdRange{dest, dest + length},
+				sourceRange:      IdRange{source, source + length - 1},
+				destinationRange: IdRange{dest, dest + length - 1},
 			},
 		)
 	}
@@ -87,11 +87,9 @@ func evaluate(data []SourceDestinationRanges, source int) int {
 		return element.sourceRange.from <= source && element.sourceRange.to >= source
 	})
 	if id < 0 {
-		fmt.Println("no match")
 		return source
 	}
 	matchingRange := data[id]
-	fmt.Println(" match: ", matchingRange)
 	sourceOffset := source - matchingRange.sourceRange.from
 	return matchingRange.destinationRange.from + sourceOffset
 }
@@ -99,23 +97,14 @@ func evaluate(data []SourceDestinationRanges, source int) int {
 func part1(data map[string][]SourceDestinationRanges, seeds []int) int {
 	fmt.Println("Part 1")
 	lowestLocation := 999999999999999999
-	//fmt.Println("seed-to-soil: ", data["seed-to-soil"])
 	for _, seed := range seeds {
-		fmt.Println("seed: ", seed)
 		soil := evaluate(data["seed-to-soil"], seed)
-		fmt.Println("soil: ", soil)
-		fertilizer := evaluate(data["soil-to-ferilizer"], soil)
-		fmt.Println("fertilizer: ", fertilizer)
-		water := evaluate(data["ferilizer-to-water"], fertilizer)
-		fmt.Println("water: ", water)
+		fertilizer := evaluate(data["soil-to-fertilizer"], soil)
+		water := evaluate(data["fertilizer-to-water"], fertilizer)
 		light := evaluate(data["water-to-light"], water)
-		fmt.Println("light", light)
 		temperature := evaluate(data["light-to-temperature"], light)
-		fmt.Println("temperature: ", temperature)
-		humidity := evaluate(data["temperature-to-light"], temperature)
-		fmt.Println("humidity: ", humidity)
+		humidity := evaluate(data["temperature-to-humidity"], temperature)
 		location := evaluate(data["humidity-to-location"], humidity)
-		fmt.Println("location: ", location)
 		if location < lowestLocation {
 			lowestLocation = location
 		}
