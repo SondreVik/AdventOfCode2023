@@ -3,9 +3,11 @@ package day5
 import (
 	"AdventOfCode2023/utils"
 	"fmt"
+	"runtime/pprof"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Mapping struct {
@@ -21,6 +23,12 @@ type IdRange struct {
 type SourceDestinationRanges struct {
 	destinationRange IdRange
 	sourceRange      IdRange
+}
+
+type RangeMap struct {
+	start            int
+	length           int
+	transformedStart int
 }
 
 func deserializeRangeMaps(textLines []string) (maps map[string][]SourceDestinationRanges) {
@@ -59,6 +67,42 @@ func deserializeRangeMaps(textLines []string) (maps map[string][]SourceDestinati
 	}
 	return
 }
+
+func deserializeRangeMaps2(textLines []string) (maps map[string]map[int]RangeMap) {
+	mapKey := ""
+	maps = map[string]map[int]RangeMap{
+		"seed-to-soil":            {},
+		"soil-to-fertilizer":      {},
+		"fertilizer-to-water":     {},
+		"water-to-light":          {},
+		"light-to-temperature":    {},
+		"temperature-to-humidity": {},
+		"humidity-to-location":    {},
+	}
+	for _, line := range textLines {
+		if len(line) == 0 {
+			continue
+		}
+		if strings.Contains(line, "map") {
+			mapKey = strings.Split(line, " ")[0]
+			continue
+		}
+		parts := strings.Split(line, " ")
+		dest, err := strconv.Atoi(parts[0])
+		utils.CheckError(err)
+		source, err := strconv.Atoi(parts[1])
+		utils.CheckError(err)
+		length, err := strconv.Atoi(parts[2])
+		utils.CheckError(err)
+		maps[mapKey][source] = RangeMap{
+			start:            source,
+			length:           length,
+			transformedStart: dest,
+		}
+
+	}
+	return
+}
 func deserializeSeedList(seedText string) (seeds []int) {
 	for _, seed := range strings.Split(seedText, " ") {
 		seedNumber, err := strconv.Atoi(seed)
@@ -89,6 +133,7 @@ func Solve() {
 	maps := deserializeRangeMaps(textLines[1:])
 	fmt.Println(part1(maps, seeds))
 	seedRanges := deserializeSeedRanges(firstLineParts[1])
+	fmt.Println(part2_1(deserializeRangeMaps2(textLines[1:]), seedRanges))
 	fmt.Println(part2(maps, seedRanges))
 }
 
@@ -111,6 +156,16 @@ func evaluate(data []SourceDestinationRanges, source int) int {
 	return matchingRange.destinationRange.from + sourceOffset
 }
 
+func evaluate2(data map[int]RangeMap, seed int) int {
+	for _, rangeMap := range data {
+		if seed >= rangeMap.start && seed < rangeMap.start+rangeMap.length {
+			offset := seed - rangeMap.start
+			return rangeMap.transformedStart + offset
+		}
+	}
+	return seed
+}
+
 func getLocation(data map[string][]SourceDestinationRanges, seed int) int {
 	soil := evaluate(data["seed-to-soil"], seed)
 	fertilizer := evaluate(data["soil-to-fertilizer"], soil)
@@ -121,17 +176,41 @@ func getLocation(data map[string][]SourceDestinationRanges, seed int) int {
 	return evaluate(data["humidity-to-location"], humidity)
 }
 
-func getLocationsFromRange(data map[string][]SourceDestinationRanges, seedRange IdRange) (locations []int) {
-	usedSoil := []int{}
+func getLocation2(data map[string]map[int]RangeMap, seed int) int {
+	soil := evaluate2(data["seed-to-soil"], seed)
+	fertilizer := evaluate2(data["soil-to-fertilizer"], soil)
+	water := evaluate2(data["fertilizer-to-water"], fertilizer)
+	light := evaluate2(data["water-to-light"], water)
+	temperature := evaluate2(data["light-to-temperature"], light)
+	humidity := evaluate2(data["temperature-to-humidity"], temperature)
+	return evaluate2(data["humidity-to-location"], humidity)
+}
+
+func getLocationsFromRange(data map[string][]SourceDestinationRanges, seedRange IdRange) map[int]int {
+	soilToLocation := make(map[int]int)
 	for i := seedRange.from; i <= seedRange.to; i++ {
 		soil := evaluate(data["seed-to-soil"], i)
-		if slices.Contains(usedSoil, soil) {
-			continue
+		if _, exists := soilToLocation[soil]; !exists {
+			soilToLocation[soil] = getLocation(data, i)
 		}
-		usedSoil = append(usedSoil, soil)
-		locations = append(locations, getLocation(data, i))
 	}
-	return
+	return soilToLocation
+}
+
+func getLocationsFromRange2(data map[string]map[int]RangeMap, seedRange IdRange, locations map[int]int) {
+	soilToLocation := make(map[int]int)
+	for i := seedRange.from; i <= seedRange.to; i++ {
+		soil := evaluate2(data["seed-to-soil"], i)
+		if _, exists := soilToLocation[soil]; !exists {
+			soilToLocation[soil] = getLocation2(data, i)
+		}
+	}
+	for _, loc := range soilToLocation {
+		if _, exists := locations[loc]; !exists {
+			locations[loc] = loc
+		}
+	}
+	defer wg.Done()
 }
 
 func part1(data map[string][]SourceDestinationRanges, seeds []int) int {
@@ -150,12 +229,35 @@ func part2(data map[string][]SourceDestinationRanges, seedRanges []IdRange) int 
 	fmt.Println("Part 2")
 	lowestLocation := 99999999999999999
 	for _, seedRange := range seedRanges {
-		locations := getLocationsFromRange(data, seedRange)
-		for _, location := range locations {
+		soilToLocation := getLocationsFromRange(data, seedRange)
+		for _, location := range soilToLocation {
 			if location < lowestLocation {
 				lowestLocation = location
 			}
 		}
 	}
+	return lowestLocation
+}
+
+var wg sync.WaitGroup
+
+var threadProfile = pprof.Lookup("threadcreate")
+
+func part2_1(maps map[string]map[int]RangeMap, seedRanges []IdRange) int {
+	fmt.Println("Part 2_1")
+	lowestLocation := 99999999999999999
+	locations := map[int]int{}
+	wg.Add(len(seedRanges))
+
+	for _, seedRange := range seedRanges {
+		go getLocationsFromRange2(maps, seedRange, locations)
+	}
+	wg.Wait()
+	for _, loc := range locations {
+		if loc < lowestLocation {
+			lowestLocation = loc
+		}
+	}
+	wg.Wait()
 	return lowestLocation
 }
