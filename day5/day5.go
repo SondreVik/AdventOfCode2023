@@ -175,54 +175,75 @@ func getLocation(data map[string][]SourceDestinationRanges, seed int) int {
 }
 
 func getLocationRanges(data map[string][]SourceDestinationRanges, seedRanges []IdRange) []IdRange {
+	//fmt.Println("seed-to-soil")
 	soil := evaluateRanges(data["seed-to-soil"], seedRanges)
+	//fmt.Println("soil-to-fertilizer")
 	fertilizer := evaluateRanges(data["soil-to-fertilizer"], soil)
+	//fmt.Println("fertilizer-to-water")
 	water := evaluateRanges(data["fertilizer-to-water"], fertilizer)
+	//fmt.Println("water-to-light")
 	light := evaluateRanges(data["water-to-light"], water)
+	//fmt.Println("light-to-temperature")
 	temperature := evaluateRanges(data["light-to-temperature"], light)
+	//fmt.Println("temperature-to-humidity")
 	humidity := evaluateRanges(data["temperature-to-humidity"], temperature)
+	//fmt.Println("humidity-to-location")
 	return evaluateRanges(data["humidity-to-location"], humidity)
 }
 
 func evaluateRanges(data []SourceDestinationRanges, sourceRanges []IdRange) (result []IdRange) {
+	//fmt.Println("data: ", data)
+	//fmt.Println("source ranges: ", sourceRanges)
 	for id, sourceRange := range sourceRanges {
 		result = append(result, evaluateRange(data, sourceRange.from, sourceRange.to)...)
 		fmt.Println("Evaluated: ", id+1, " of ", len(sourceRanges))
 	}
-	fmt.Println("result: ", result)
+	//fmt.Println("result: ", result)
 	return
 }
 
 func evaluateRange(data []SourceDestinationRanges, from, to int) (result []IdRange) {
-	noMatchStart := -1
-	fmt.Println("testing data: ", data)
-	fmt.Println("from: ", from, " to: ", to)
+	//fmt.Println("Search from ", from, " to ", to)
 	for i := from; i <= to; i++ {
-		id := slices.IndexFunc(data, func(element SourceDestinationRanges) bool {
-			return element.sourceRange.from <= i && i <= element.sourceRange.to
-		})
+		id := findIdOfRangeFromNumber(data, i)
 		if id < 0 {
-			if noMatchStart < 0 {
-				noMatchStart = i
-			}
-			continue
+			//fmt.Println("No match!")
+			gap := evaluateGap(data, i, to)
+			//fmt.Println("Resulting gap: ", gap)
+			result = append(result, gap)
+			i += gap.to
+		} else {
+			//fmt.Println("Match!")
+			matchingRange := data[id]
+			//fmt.Println("Matching range: ", matchingRange)
+			//fmt.Println("Current from: ", i)
+			offset := matchingRange.destinationRange.from - matchingRange.sourceRange.from
+			resultFrom := i + offset
+			sourceTo := int(math.Min(float64(matchingRange.sourceRange.to), float64(to)))
+			resultTo := sourceTo + offset
+			item := IdRange{resultFrom, resultTo}
+			//fmt.Println("Resulting item: ", item)
+			result = append(result, item)
+			i += resultTo - resultFrom
 		}
-		if noMatchStart >= 0 {
-			noMatchResult := IdRange{noMatchStart, i - 1}
-			result = append(result, noMatchResult)
-			noMatchStart = -1
-		}
-		matchingRange := data[id]
-		resultTo := 0
-		offsetFrom := from - matchingRange.sourceRange.from
-		resultFrom := matchingRange.destinationRange.from + offsetFrom
-		sourceTo := int32(math.Min(float64(matchingRange.sourceRange.to), float64(to)))
-		offsetTo := int(sourceTo) - matchingRange.sourceRange.from
-		resultTo = matchingRange.destinationRange.from + offsetTo
-		result = append(result, IdRange{resultFrom, resultTo})
-		i += matchingRange.sourceRange.to
 	}
 	return
+}
+
+func evaluateGap(data []SourceDestinationRanges, from, to int) (gap IdRange) {
+	for i := from; i <= to; i++ {
+		id := findIdOfRangeFromNumber(data, i)
+		if id >= 0 {
+			return IdRange{from, i - 1}
+		}
+	}
+	return IdRange{from, to}
+}
+
+func findIdOfRangeFromNumber(data []SourceDestinationRanges, number int) int {
+	return slices.IndexFunc(data, func(element SourceDestinationRanges) bool {
+		return element.sourceRange.from <= number && number <= element.sourceRange.to
+	})
 }
 
 func part1(data map[string][]SourceDestinationRanges, seeds []int) int {
