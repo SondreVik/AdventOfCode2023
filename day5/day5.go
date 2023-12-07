@@ -3,6 +3,7 @@ package day5
 import (
 	"AdventOfCode2023/utils"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,8 +20,8 @@ type IdRange struct {
 }
 
 type SourceDestinationRanges struct {
-	destinationRange IdRange
 	sourceRange      IdRange
+	destinationRange IdRange
 }
 
 type RangeMap struct {
@@ -124,7 +125,7 @@ func deserializeSeedRanges(seedText string) (seedRanges []IdRange) {
 
 func Solve() {
 	fmt.Println("Day 5")
-	textLines := utils.ReadFile("day5/data.txt")
+	textLines := utils.ReadFile("day5/example.txt")
 	firstLine := textLines[0]
 	firstLineParts := strings.Split(firstLine, ": ")
 	seeds := deserializeSeedList(firstLineParts[1])
@@ -184,8 +185,9 @@ func getLocationRanges(data map[string][]SourceDestinationRanges, seedRanges []I
 }
 
 func evaluateRanges(data []SourceDestinationRanges, sourceRanges []IdRange) (result []IdRange) {
-	for _, sourceRange := range sourceRanges {
+	for id, sourceRange := range sourceRanges {
 		result = append(result, evaluateRange(data, sourceRange.from, sourceRange.to)...)
+		fmt.Println("Evaluated: ", id+1, " of ", len(sourceRanges))
 	}
 	fmt.Println("result: ", result)
 	return
@@ -193,32 +195,32 @@ func evaluateRanges(data []SourceDestinationRanges, sourceRanges []IdRange) (res
 
 func evaluateRange(data []SourceDestinationRanges, from, to int) (result []IdRange) {
 	noMatchStart := -1
+	fmt.Println("testing data: ", data)
+	fmt.Println("from: ", from, " to: ", to)
 	for i := from; i <= to; i++ {
 		id := slices.IndexFunc(data, func(element SourceDestinationRanges) bool {
-			return element.sourceRange.from <= i && element.sourceRange.to >= i
+			return element.sourceRange.from <= i && i <= element.sourceRange.to
 		})
 		if id < 0 {
 			if noMatchStart < 0 {
-				fmt.Println("Will set no match to true")
 				noMatchStart = i
 			}
 			continue
 		}
 		if noMatchStart >= 0 {
 			noMatchResult := IdRange{noMatchStart, i - 1}
-			fmt.Println("No match result: ", noMatchResult)
 			result = append(result, noMatchResult)
 			noMatchStart = -1
 		}
 		matchingRange := data[id]
 		resultTo := 0
-		if matchingRange.destinationRange.to > to {
-			resultTo = to
-		} else {
-			resultTo = matchingRange.destinationRange.to
-		}
-		result = append(result, IdRange{i, resultTo})
-		i += matchingRange.destinationRange.to
+		offsetFrom := from - matchingRange.sourceRange.from
+		resultFrom := matchingRange.destinationRange.from + offsetFrom
+		sourceTo := int32(math.Min(float64(matchingRange.sourceRange.to), float64(to)))
+		offsetTo := int(sourceTo) - matchingRange.sourceRange.from
+		resultTo = matchingRange.destinationRange.from + offsetTo
+		result = append(result, IdRange{resultFrom, resultTo})
+		i += matchingRange.sourceRange.to
 	}
 	return
 }
