@@ -122,9 +122,8 @@ func getLocationRanges(data map[string][]SourceDestinationRanges, seedRanges []I
 }
 
 func evaluateRanges(data []SourceDestinationRanges, sourceRanges []IdRange) (result []IdRange) {
-	for id, sourceRange := range sourceRanges {
+	for _, sourceRange := range sourceRanges {
 		result = append(result, evaluateRange(data, sourceRange.from, sourceRange.to)...)
-		fmt.Println("Evaluated: ", id+1, " of ", len(sourceRanges))
 	}
 	return
 }
