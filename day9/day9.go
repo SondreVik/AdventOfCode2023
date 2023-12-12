@@ -21,13 +21,21 @@ func Solve() {
 		sequences = append(sequences, sequence)
 	}
 	fmt.Println(part1(sequences))
-
+	fmt.Println(part2(sequences))
 }
 
 func part1(sequences [][]int) (total int) {
 	fmt.Println("Part 1")
 	for _, sequence := range sequences {
 		total += calculateNextDigit(sequence, getChangeSequence(sequence))
+	}
+	return
+}
+
+func part2(sequences [][]int) (total int) {
+	fmt.Println("Part 2")
+	for _, sequence := range sequences {
+		total += calculatePreviousDigit(sequence, getChangeSequence(sequence))
 	}
 	return
 }
@@ -41,11 +49,18 @@ func getChangeSequence(sequence []int) (changeSequence []int) {
 	return
 }
 
-func calculateNextDigit(sequences []int, changeList []int) int {
+func calculateNextDigit(sequence []int, changeList []int) int {
 	if allZeroes(changeList) {
-		return sequences[len(sequences)-1]
+		return sequence[len(sequence)-1]
 	}
-	return sequences[len(sequences)-1] + calculateNextDigit(changeList, getChangeSequence(changeList))
+	return sequence[len(sequence)-1] + calculateNextDigit(changeList, getChangeSequence(changeList))
+}
+
+func calculatePreviousDigit(sequence []int, changeList []int) int {
+	if allZeroes(changeList) {
+		return sequence[0]
+	}
+	return sequence[0] - calculatePreviousDigit(changeList, getChangeSequence(changeList))
 }
 
 func allZeroes(sequence []int) bool {
