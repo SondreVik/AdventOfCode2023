@@ -24,3 +24,10 @@ func ReadFile(path string) (fileLines []string) {
 	readFile.Close()
 	return fileLines
 }
+
+func SumIntList(list []int) (sum int) {
+	for _, element := range list {
+		sum += element
+	}
+	return
+}
